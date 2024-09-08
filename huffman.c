@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "pqueue.h"
+#include <locale.h>
+char caracteres[200];
+int contadores[200];
+int cantidadC=0;
 
 Node* createNode(char data, int freq){
   Node* node = (Node*)malloc(sizeof(Node));
@@ -27,10 +31,23 @@ void createTree(char data[], int freq[], int size){
     enqueue(p, top);
   }
 }
+int inListCar(char val){
+    for(int i = 0;i<cantidadC;i++){
+      if(val == caracteres[i]){
+        contadores[i] +=1;
+        return 1;
+      }
+    }
+    caracteres[cantidadC]=val;
+    contadores[cantidadC]=1;
+    cantidadC++;
+    return 0;
+
+}
 
 int main(){
-  FILE *f = fopen("test.txt", "r");
-
+  FILE *f = fopen("test1.txt", "r");
+  setlocale(LC_CTYPE, "");
   if(NULL == f){
     printf("File not found\n");
     return 1;
@@ -38,13 +55,18 @@ int main(){
 
   char ch;
 
+
   while((ch = fgetc(f)) != EOF){
-    printf("%c", ch);
+    inListCar(ch);
+    
   }
 
   fclose(f);
-  /*
-  PriorityQueue p;
+  
+  for(int i =0;i<cantidadC;i++){
+    printf("Caracter: %c cantidad: %d \n",caracteres[i],contadores[i]);
+  }
+  /*PriorityQueue p;
   p.size = 0;
   enqueue(&p, 3);
   enqueue(&p, 2);
@@ -55,5 +77,6 @@ int main(){
   printf("%d\n", dequeue(&p));
   printf("%d\n", dequeue(&p));
   */
+  
   return 0;
 }

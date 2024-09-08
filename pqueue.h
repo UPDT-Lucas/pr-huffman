@@ -1,7 +1,7 @@
 #ifndef PRIOQUEUE_H
 #define PRIOQUEUE_H
 
-#define MAX 100
+#define MAX 200
 
 typedef struct Node {
   char data;
