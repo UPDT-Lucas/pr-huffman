@@ -2,50 +2,60 @@
 #include <stdlib.h>
 #include "pqueue.h"
 
-void swap(Node** a, Node** b){
+// Intercambia dos nodos
+void swap(Node** a, Node** b) {
   Node* temp = *a;
   *a = *b;
   *b = temp;
 }
 
-void moveUp(PriorityQueue* p, int index){
-  if(index && p->items[(index-1) / 2] > p->items[index]){
-    swap(&p->items[(index-1) / 2], &p->items[index]);
-    moveUp(p, (index-1) / 2);
+// Mueve un nodo hacia arriba en el heap para mantener la propiedad del min-heap
+void moveUp(PriorityQueue* p, int index) {
+  // Mientras no estés en la raíz y el nodo actual tenga una frecuencia menor que su padre
+  if (index && p->items[(index - 1) / 2]->freq > p->items[index]->freq) {
+    // Intercambia el nodo con su padre
+    swap(&p->items[(index - 1) / 2], &p->items[index]);
+    // Recursivamente mueve el nodo hacia arriba
+    moveUp(p, (index - 1) / 2);
   }
 }
 
-void  moveDown(PriorityQueue* p, int index){
+// Mueve un nodo hacia abajo en el heap para mantener la propiedad del min-heap
+void moveDown(PriorityQueue* p, int index) {
   int smallest = index;
   int left = 2 * index + 1;
   int right = 2 * index + 2;
-  
-  if(left < p->size && 
-    p->items[left] < p->items[smallest])
+
+  // Encuentra el hijo con la frecuencia mínima
+  if (left < p->size && p->items[left]->freq < p->items[smallest]->freq)
     smallest = left;
-      
-  if(right < p->size && 
-    p->items[right] < p->items[smallest])
+  
+  if (right < p->size && p->items[right]->freq < p->items[smallest]->freq)
     smallest = right;
 
+  // Si el nodo actual no es el más pequeño, intercámbialo con el más pequeño y repite
   if (smallest != index) {
     swap(&p->items[index], &p->items[smallest]);
     moveDown(p, smallest);
   }
 }
 
-void enqueue(PriorityQueue* p, Node* node){
-  if(p->size == MAX){
+// Inserta un nuevo nodo en la cola de prioridad
+void enqueue(PriorityQueue* p, Node* node) {
+  if (p->size == MAX) {
     printf("Queue is full\n");
     return;
   }
-  p->items[p->size++] = node;
-  moveUp(p, p->size-1);
+  p->items[p->size] = node;
+  moveUp(p, p->size);
+  p->size++;
 }
 
-Node* dequeue(PriorityQueue* p){
-  if(!p->size){
+// Elimina y retorna el nodo de menor frecuencia de la cola de prioridad
+Node* dequeue(PriorityQueue* p) {
+  if (p->size == 0) {
     printf("Queue is empty\n");
+    return NULL;
   }
   Node* item = p->items[0];
   p->items[0] = p->items[--p->size];
@@ -53,10 +63,11 @@ Node* dequeue(PriorityQueue* p){
   return item;
 }
 
-Node* peek(PriorityQueue* p){
-  if(!p->size){
+// Retorna el nodo de menor frecuencia sin eliminarlo
+Node* peek(PriorityQueue* p) {
+  if (p->size == 0) {
     printf("Queue is empty\n");
+    return NULL;
   }
   return p->items[0];
 }
-

@@ -10,7 +10,7 @@
 # Names of the files (excluding extensions)
 name1 = huffman
 name2 = pqueue
-
+name3 = linkedList
 # Compiler
 CC = gcc
 
@@ -18,7 +18,7 @@ CC = gcc
 TARGET = executable
 
 # Source files
-SRCS = $(name1).c $(name2).c 
+SRCS = $(name1).c $(name2).c $(name3).c  
 
 # Object files
 OBJS = $(SRCS:.c=.o)

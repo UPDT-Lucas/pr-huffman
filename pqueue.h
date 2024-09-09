@@ -1,10 +1,10 @@
 #ifndef PRIOQUEUE_H
 #define PRIOQUEUE_H
 
-#define MAX 200
+#define MAX 1000
 
 typedef struct Node {
-  char data;
+  wchar_t data;
   int freq;
   struct Node* left;
   struct Node* right;
