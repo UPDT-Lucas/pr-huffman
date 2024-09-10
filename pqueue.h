@@ -1,7 +1,7 @@
 #ifndef PRIOQUEUE_H
 #define PRIOQUEUE_H
 
-#define MAX 1000
+#define MAX 4000
 
 typedef struct Node {
   wchar_t data;
@@ -10,12 +10,13 @@ typedef struct Node {
   struct Node* right;
 } Node;
 
-typedef struct {
-    Node* items[MAX];
-    int size;
+typedef struct PriorityQueue {
+    int size;              // Número actual de elementos en la cola
+    int capacity;          // Capacidad máxima de la cola
+    Node** array;          // Array de punteros a nodos
 } PriorityQueue;
 
-void swap(Node** a, Node** b);
+void swapNodes(Node** a, Node** b);
 void moveUp(PriorityQueue* p, int index);
 void moveDown(PriorityQueue* p, int index);
 void enqueue(PriorityQueue* p, Node* node);
