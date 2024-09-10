@@ -6,8 +6,8 @@
 #include <dirent.h>
 #include "linkedList.h"
 
-wchar_t caracteres[200];
-int contadores[200];
+wchar_t caracteres[310];
+int contadores[310];
 int cantidadC=0;
 LinkedList* list;
 wchar_t translate[ARRAY_SIZE];
@@ -24,27 +24,43 @@ Node* createNode(wchar_t data, int freq){
   return node;
 }
 
-void preOrder(Node* root,wchar_t value){
+void preOrder(Node* root, wchar_t value) {
+    if (root == NULL) return;  // Verificación adicional por seguridad
 
-  if(value!=L'\0'){
-    translate[translateCounter]=value;
-    translateCounter++;
+    // Si el valor no es '\0', lo agregamos al código actual
+    if (value != L'\0') {
+        translate[translateCounter] = value;
+        translateCounter++;
+    }
 
-  }
-  if(root->left==NULL && root->right==NULL){
-    insert(list, translate,root->data);
-    
-  }
-  if(root->left!=NULL){
-    preOrder(root->left,L'0');
-  }
-  if(root->right!=NULL){
-    preOrder(root->right,L'1');
-  }
-  translateCounter--;
-  translate[translateCounter]='\0';
-  return;
+    // Si es un nodo hoja, significa que hemos formado el código para un carácter
+    if (root->left == NULL && root->right == NULL) {
+        translate[translateCounter] = '\0';  // Termina el código actual como una cadena
+        insert(list, translate, root->data);  // Inserta el código y el carácter en la lista o tabla de símbolos
+    } else {
+        // Recorremos el subárbol izquierdo, agregando '0' al código
+        if (root->left != NULL) {
+            preOrder(root->left, L'0');
+        }
+        // Recorremos el subárbol derecho, agregando '1' al código
+        if (root->right != NULL) {
+            preOrder(root->right, L'1');
+        }
+    }
+
+    // Backtrack: retrocede al nodo anterior
+    translateCounter--;
+    translate[translateCounter] = '\0';  // Asegúrate de limpiar el código actual para el próximo uso
 }
+
+PriorityQueue* createPriorityQueue(int capacity) {
+    PriorityQueue* pQueue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
+    pQueue->size = 0;
+    pQueue->capacity = capacity;
+    pQueue->array = (Node**)malloc(capacity * sizeof(Node*));
+    return pQueue;
+}
+
 
 void printHuffmanTree(struct Node* root, int space) {
     if (root == NULL) return;
@@ -69,26 +85,51 @@ void printHuffmanTree(struct Node* root, int space) {
     printHuffmanTree(root->left, space);
 }
 
+void freeTree(Node* root) {
+    if (root == NULL) {
+        return;
+    }
+
+    // Liberar memoria de los subárboles izquierdo y derecho
+    freeTree(root->left);
+    freeTree(root->right);
+
+    // Liberar la memoria del nodo actual
+    free(root);
+}
+
 void createTree(wchar_t data[], int freq[], int size) {
-  Node *left, *right, *top;
+    Node *left, *right, *top;
 
-  PriorityQueue* p = (PriorityQueue*)malloc(sizeof(PriorityQueue));
-  p->size = 0;
-  for (int i = 0; i < size; i++) {
-    enqueue(p, createNode(data[i], freq[i]));
-  }
+    // Crear la cola de prioridad con capacidad suficiente
+    PriorityQueue* pQueue = createPriorityQueue(1000);
 
-  while (p->size != 1) {
-    left = dequeue(p);
-    right = dequeue(p);
-    top = createNode(L'$', left->freq + right->freq);
-    top->left = left;
-    top->right = right;
-    enqueue(p, top);
-  }
+    // Insertar todos los caracteres en la cola de prioridad
+    for (int i = 0; i < size; i++) {
+        enqueue(pQueue, createNode(data[i], freq[i]));
+    }
 
-  //printHuffmanTree(top, 0);
-  preOrder(top, L'\0');
+    // Construir el árbol de Huffman
+    while (pQueue->size != 1) {
+        left = dequeue(pQueue);
+        right = dequeue(pQueue);
+        top = createNode(L'$', left->freq + right->freq);
+        top->left = left;
+        top->right = right;
+        enqueue(pQueue, top);
+    }
+
+    // El nodo restante es el árbol de Huffman completo
+    top = dequeue(pQueue);
+
+    // Realizar operaciones con el árbol
+    // printHuffmanTree(top, 0);
+    preOrder(top, L'\0');
+
+    // Liberar memoria
+    freeTree(top);
+    free(pQueue->array);
+    free(pQueue);
 }
 int inListCar(wchar_t val){
     for(int i = 0;i<cantidadC;i++){
@@ -125,7 +166,7 @@ int main(){
             char fileToRead[256];
             snprintf(fileToRead, sizeof(fileToRead), "textos/%s", dp->d_name);
 
-            FILE *f = fopen(fileToRead, "r");
+            FILE *f = fopen(fileToRead, "r,ccs=UTF-8");
             if (f == NULL) {
                 perror("Error opening file");
                 continue;
@@ -148,21 +189,24 @@ int main(){
               
             }
             
+            
             fclose(f);
         }
     }
-    for(int i =0;i<cantidadC;i++){
+    /*for(int i =0;i<cantidadC;i++){
       wprintf(L"Caracter:%lc cantidad:%d \n",caracteres[i],contadores[i]);
-    }
+    }*/
     closedir(dir);
-
+    
     createTree(caracteres,contadores,cantidadC);
 
     if ((dir = opendir("textos")) == NULL) {
         perror("Cannot open directory");
         return 1;
     }
-    FILE *dataC = fopen("textos.bin", "w");
+    FILE *dataC = fopen("textos.bin", "wb,ccs=UTF-8");
+    wchar_t noAparece[100];
+    int noAP = 0;
     while ((dp = readdir(dir))) {
 
         if (dp->d_type == DT_REG) {
@@ -171,7 +215,7 @@ int main(){
             char fileToRead[256];
             snprintf(fileToRead, sizeof(fileToRead), "textos/%s", dp->d_name);
 
-            FILE *f = fopen(fileToRead, "r");
+            FILE *f = fopen(fileToRead, "r,ccs=UTF-8");
             if (f == NULL) {
                 perror("Error opening file");
                 continue;
@@ -181,7 +225,18 @@ int main(){
             while((ch = fgetwc(f)) != WEOF){
               wchar_t* codigo = get_arr_by_char(list,ch);
               if(codigo ==NULL){
-                  wprintf(L"No existe codigo para este caracter: %lc",ch);
+                  //wprintf(L"%lc \n",ch);
+                  int flag = 0;
+                  for(int i =0 ; i<noAP;i++){
+                      if(noAparece[i]==ch){
+                        flag=1;
+                        break;
+                      }
+                  }
+                  if(flag==0){
+                    noAparece[noAP]=ch;
+                    noAP++;
+                  }
               }else{
                   fputws(codigo, dataC); // Escribe la cadena en el archivo
                   fputwc(L' ', dataC);  // Escribe un salto de línea
@@ -195,8 +250,11 @@ int main(){
         }
       }
       fclose(dataC);
-    
-    
+    wprintf(L"Caracteres no encontrados:");
+    for(int i =0 ; i<noAP;i++){
+      wprintf(L"%lc,", noAparece[i]);
+    }
+    wprintf(L"\n");    
     LNode* current = list->head->next;  // Saltamos el nodo de la cabeza
     while (current != list->tail) {  // Iteramos hasta el nodo de la cola
         wprintf(L"Contenido del nodo: %ls, Caracter único: %lc\n", current->arr, current->single_char);
