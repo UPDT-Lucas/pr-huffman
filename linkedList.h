@@ -7,7 +7,7 @@
 #define ARRAY_SIZE 1000 
 
 typedef struct LNode {
-    wchar_t arr[ARRAY_SIZE];
+    char arr[ARRAY_SIZE];
     wchar_t single_char;
     struct LNode* next;
 } LNode;
@@ -19,10 +19,10 @@ typedef struct LinkedList {
 } LinkedList;
 
 LinkedList* create_linked_list();
-void insert(LinkedList *list, wchar_t* arr, wchar_t single_char);
+void insert(LinkedList *list, char* arr, wchar_t single_char);
 void free_list(LinkedList *list);
-LNode* createLinkedNode(wchar_t*arr,wchar_t single_char);
-wchar_t* get_arr_by_char(LinkedList *list, wchar_t single_char);
+LNode* createLinkedNode(char*arr,wchar_t single_char);
+char* get_arr_by_char(LinkedList *list, wchar_t single_char);
 
 
 #endif 
