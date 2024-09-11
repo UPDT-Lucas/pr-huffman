@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "linkedList.h"
+#include <string.h>
 
-void insert(LinkedList *list,wchar_t* arr, wchar_t single_char){
+void insert(LinkedList *list,char* arr, wchar_t single_char){
 	LNode* node = createLinkedNode(arr,single_char);
 	if(list->head->next==list->tail){
 		list->head->next = node;
@@ -14,13 +15,13 @@ void insert(LinkedList *list,wchar_t* arr, wchar_t single_char){
 	node->next=list->tail;
 	list->last = node;
 }
-LNode* createLinkedNode(wchar_t*arr,wchar_t single_char){
+LNode* createLinkedNode(char*arr,wchar_t single_char){
 
 	LNode* new_node = (LNode*)malloc(sizeof(LNode));
 	if(new_node==NULL){
 		return NULL;
 	}
-	wcsncpy(new_node->arr, arr, ARRAY_SIZE - 1);
+	strncpy(new_node->arr, arr, ARRAY_SIZE - 1);
 	new_node->arr[ARRAY_SIZE - 1] = L'\0';
 	new_node->single_char = single_char;
 	new_node->next = NULL;
@@ -64,7 +65,7 @@ void free_list(LinkedList *list) {
 
     free(list);
 }
-wchar_t* get_arr_by_char(LinkedList *list, wchar_t single_char) {
+char* get_arr_by_char(LinkedList *list, wchar_t single_char) {
     if (list == NULL) {
         return NULL; // Lista no inicializada
     }

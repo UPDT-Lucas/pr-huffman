@@ -10,10 +10,30 @@ wchar_t caracteres[310];
 int contadores[310];
 int cantidadC=0;
 LinkedList* list;
-wchar_t translate[ARRAY_SIZE];
+char translate[ARRAY_SIZE];
 int translateCounter;
 
+void writeBitsToFile(FILE* file, const char* bits) {
+    unsigned char buffer = 0;
+    int bitCount = 0;
 
+    for (int i = 0; bits[i] != '\0'; i++) {
+        buffer = (buffer << 1) | (bits[i] - '0');  // Añade el bit al buffer
+        bitCount++;
+
+        if (bitCount == 8) {  // Si el buffer está lleno, escribir al archivo
+            fwrite(&buffer, sizeof(unsigned char), 1, file);
+            buffer = 0;
+            bitCount = 0;
+        }
+    }
+
+    // Escribir los bits restantes (si los hay)
+    if (bitCount > 0) {
+        buffer <<= (8 - bitCount);  // Ajusta los bits restantes
+        fwrite(&buffer, sizeof(unsigned char), 1, file);
+    }
+}
 
 
 Node* createNode(wchar_t data, int freq){
@@ -24,11 +44,11 @@ Node* createNode(wchar_t data, int freq){
   return node;
 }
 
-void preOrder(Node* root, wchar_t value) {
+void preOrder(Node* root, char value) {
     if (root == NULL) return;  // Verificación adicional por seguridad
 
     // Si el valor no es '\0', lo agregamos al código actual
-    if (value != L'\0') {
+    if (value != '\0') {
         translate[translateCounter] = value;
         translateCounter++;
     }
@@ -40,11 +60,11 @@ void preOrder(Node* root, wchar_t value) {
     } else {
         // Recorremos el subárbol izquierdo, agregando '0' al código
         if (root->left != NULL) {
-            preOrder(root->left, L'0');
+            preOrder(root->left, '0');
         }
         // Recorremos el subárbol derecho, agregando '1' al código
         if (root->right != NULL) {
-            preOrder(root->right, L'1');
+            preOrder(root->right, '1');
         }
     }
 
@@ -124,7 +144,7 @@ void createTree(wchar_t data[], int freq[], int size) {
 
     // Realizar operaciones con el árbol
     // printHuffmanTree(top, 0);
-    preOrder(top, L'\0');
+    preOrder(top, '\0');
 
     // Liberar memoria
     freeTree(top);
@@ -204,8 +224,10 @@ int main(){
         perror("Cannot open directory");
         return 1;
     }
-    FILE *dataC = fopen("textos.bin", "wb,ccs=UTF-8");
+    FILE *dataC = fopen("textos.bin", "wb");
     wchar_t noAparece[100];
+    char bitStream[10000];
+    int bitS=0;
     int noAP = 0;
     while ((dp = readdir(dir))) {
 
@@ -215,7 +237,7 @@ int main(){
             char fileToRead[256];
             snprintf(fileToRead, sizeof(fileToRead), "textos/%s", dp->d_name);
 
-            FILE *f = fopen(fileToRead, "r,ccs=UTF-8");
+            FILE *f = fopen(fileToRead, "r");
             if (f == NULL) {
                 perror("Error opening file");
                 continue;
@@ -223,7 +245,7 @@ int main(){
             wchar_t ch;
             
             while((ch = fgetwc(f)) != WEOF){
-              wchar_t* codigo = get_arr_by_char(list,ch);
+              char* codigo = get_arr_by_char(list,ch);
               if(codigo ==NULL){
                   //wprintf(L"%lc \n",ch);
                   int flag = 0;
@@ -238,8 +260,17 @@ int main(){
                     noAP++;
                   }
               }else{
-                  fputws(codigo, dataC); // Escribe la cadena en el archivo
-                  fputwc(L' ', dataC);  // Escribe un salto de línea
+                  for(int i=0;i<1000;i++){  
+                    if(codigo[i]!= '\0'){
+                      bitStream[bitS]=codigo[i];
+                      bitS++;
+                    }else{
+                      break;
+                    }
+                  
+                  }
+                  //fputs(codigo, dataC); // Escribe la cadena en el archivo
+                  //fputc(' ', dataC);  // Escribe un salto de línea
               }
                 
               
@@ -249,17 +280,13 @@ int main(){
 
         }
       }
+      writeBitsToFile(dataC,bitStream);
       fclose(dataC);
     wprintf(L"Caracteres no encontrados:");
     for(int i =0 ; i<noAP;i++){
       wprintf(L"%lc,", noAparece[i]);
     }
-    wprintf(L"\n");    
-    LNode* current = list->head->next;  // Saltamos el nodo de la cabeza
-    while (current != list->tail) {  // Iteramos hasta el nodo de la cola
-        wprintf(L"Contenido del nodo: %ls, Caracter único: %lc\n", current->arr, current->single_char);
-        current = current->next;
-    }
+    
     closedir(dir);
     
 
