@@ -11,6 +11,7 @@
 name1 = huffman
 name2 = pqueue
 name3 = linkedList
+name4 = linkedChar
 # Compiler
 CC = gcc
 
@@ -18,7 +19,7 @@ CC = gcc
 TARGET = executable
 
 # Source files
-SRCS = $(name1).c $(name2).c $(name3).c  
+SRCS = $(name1).c $(name2).c $(name3).c $(name4).c 
 
 # Object files
 OBJS = $(SRCS:.c=.o)

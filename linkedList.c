@@ -3,8 +3,8 @@
 #include "linkedList.h"
 #include <string.h>
 
-void insert(LinkedList *list,char* arr, wchar_t single_char){
-	LNode* node = createLinkedNode(arr,single_char);
+void insert(LinkedList *list,char* arr, wchar_t single_char,int len,int freq){
+	LNode* node = createLinkedNode(arr,single_char,len,freq);
 	if(list->head->next==list->tail){
 		list->head->next = node;
 		node->next=list->tail;
@@ -15,7 +15,7 @@ void insert(LinkedList *list,char* arr, wchar_t single_char){
 	node->next=list->tail;
 	list->last = node;
 }
-LNode* createLinkedNode(char*arr,wchar_t single_char){
+LNode* createLinkedNode(char*arr,wchar_t single_char,int len,int freq){
 
 	LNode* new_node = (LNode*)malloc(sizeof(LNode));
 	if(new_node==NULL){
@@ -25,7 +25,9 @@ LNode* createLinkedNode(char*arr,wchar_t single_char){
 	new_node->arr[ARRAY_SIZE - 1] = L'\0';
 	new_node->single_char = single_char;
 	new_node->next = NULL;
-	return new_node;
+	new_node->code_len=len;
+    new_node->freque=freq;	
+    return new_node;
 }
 
 LinkedList* create_linked_list() {
