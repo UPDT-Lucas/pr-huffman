@@ -1,5 +1,5 @@
-#ifndef PRIOQUEUE_H
-#define PRIOQUEUE_H
+#ifndef PQUEUE_H
+#define PQUEUE_H
 
 #define MAX 4000
 
