@@ -7,6 +7,10 @@
 #include <string.h>
 #include "huffman.h"
 
+LinkedList* list;
+int translateCounter;
+int bitsCounter=0;
+char translate[ARRAY_SIZE];
 
 void escribir_encabezado(FILE* archivo, LinkedList* lista) {
     int numero_simbolos = 0;
@@ -34,57 +38,114 @@ void escribir_encabezado(FILE* archivo, LinkedList* lista) {
     }
 }
 
-int main(){
-/*
+void preOrder(Node* root, char value) {
+    if (root == NULL) return;  // Verificación adicional por seguridad
 
-    wprintf(L"\n");
-    for(int i =0 ; i<noAP;i++){
-      wprintf(L"%lc,", noAparece[i]);
-    }
-    int nFiles;
-    closedir(dir);
-    FILE *dataE = fopen("textos.bin", "rb");
-    char* fileNames[100];
-    fread(&nFiles,sizeof(int),1,dataE);
-    int ln;
-    int lnc;
-    int fileChars[100];
-    //printf("cantidad de archivos %d \n",nFiles);
-    for(int i = 0;i<nFiles;i++){
-      fread(&ln,sizeof(int),1,dataE);
-      //rintf("cantidad de espacio para el nombre  %d \n",ln);
-      fileNames[i] = (char*) malloc(ln);
-      fread(fileNames[i], sizeof(char), ln, dataE);
-      //printf("nombre %s \n",readBuffer);
-      fread(&lnc,sizeof(int),1,dataE);
-      fileChars[i] = lnc;
-      //printf("cantidad letras %d \n",lnc);
+    // Si el valor no es '\0', lo agregamos al código actual
+    if (value != '\0') {
+        translate[translateCounter] = value;
+        translateCounter++;
+        bitsCounter++;
     }
 
+    if (root->left == NULL && root->right == NULL) {
+        translate[translateCounter] = '\0';  
+        insert(list, translate, root->data,bitsCounter,root->freq);  
+    } else {
+        // Recorremos el subárbol izquierdo, agregando '0' al código
+        if (root->left != NULL) {
+            preOrder(root->left, '0');
+        }
+        // Recorremos el subárbol derecho, agregando '1' al código
+        if (root->right != NULL) {
+            preOrder(root->right, '1');
+        }
+    }
 
+    translateCounter--;
+    bitsCounter--;
+    translate[translateCounter] = '\0';  
+}
+
+void decodeHuffman(FILE* decodeTo, FILE* decodeFrom, Node* root, int numChars) {
+    Node* current = root;
+    unsigned char bits;
+    int nbits = 0;
+    int charsDecoded = 0;
+
+    while (charsDecoded < numChars && fread(&bits, sizeof(unsigned char), 1, decodeFrom) == 1) {  // Leer un byte a la vez
+        nbits = 8;
+        while (nbits > 0 && charsDecoded < numChars) {
+            nbits--;
+            
+            if (bits & (1 << nbits)) { 
+                current = current->right;
+            } else { 
+                current = current->left;
+            }
+
+            if (current->left == NULL && current->right == NULL) {
+                fputwc(current->data, decodeTo); 
+                current = root;
+                charsDecoded++;
+            }
+        }
+    }
+}
+
+void rebuidFile(char* filename, FILE* fileToRead, int numChars, Node* huffman){
+    char decodedFileName[256];
+    snprintf(decodedFileName, sizeof(decodedFileName), "%s_decoded.txt", filename);
+    FILE *decodedFile = fopen(decodedFileName, "w");
+    decodeHuffman(decodedFile, fileToRead, huffman, numChars);
+    fclose(decodedFile);
+}
+
+void leerNombresDeArchivos(FILE *dataE, int nFiles, char* fileNames[], int fileChars[]) {
+    int ln, lnc;
+    for (int i = 0; i < nFiles; i++) {
+        fread(&ln, sizeof(int), 1, dataE);
+        fileNames[i] = (char*) malloc(ln);
+        fread(fileNames[i], sizeof(char), ln, dataE);
+        fread(&lnc, sizeof(int), 1, dataE);
+        fileChars[i] = lnc;
+    }
+}
+
+PriorityQueue* leerArbolHuffman(FILE *dataE) {
     int lenList;
+    fread(&lenList, sizeof(int), 1, dataE);
+
     PriorityQueue* pQueue = createPriorityQueue(1000);
-    fread(&lenList,sizeof(int),1,dataE);
     wchar_t charN;
     int charFreq;
-    for(int i = 0;i<lenList;i++){
-      fread(&charN, sizeof(wchar_t), 1, dataE);
-      fread(&charFreq,sizeof(int),1,dataE);
-      if(charN !=L'\0'){
-        enqueue(pQueue, createNode(charN, charFreq));
-      }
-      
+    for (int i = 0; i < lenList; i++) {
+        fread(&charN, sizeof(wchar_t), 1, dataE);
+        fread(&charFreq, sizeof(int), 1, dataE);
+        if (charN != L'\0') {
+            enqueue(pQueue, createNode(charN, charFreq));
+        }
     }
-    Node* arbol_huffman=construir_arbol_huffman(pQueue);
+    return pQueue;
+}
 
-    for(int i = 0;i<nFiles;i++){
-      char decodedFileName[256];
-      snprintf(decodedFileName, sizeof(decodedFileName), "%s_decoded.txt", fileNames[i]);
-      FILE *decodedFile = fopen(decodedFileName, "w");
-      decode(decodedFile, dataE, arbol_huffman, fileChars[i]);
-      fclose(decodedFile);
-   }
+int main(){
+  int nFiles;
+  FILE *dataE = fopen("textos.bin", "rb");
+  char* fileNames[100];
+  int fileChars[100];
 
-    fclose(dataE);
-    */
+  fread(&nFiles, sizeof(int), 1, dataE);
+
+  leerNombresDeArchivos(dataE, nFiles, fileNames, fileChars);
+
+  PriorityQueue* pQueue = leerArbolHuffman(dataE);
+
+  Node* arbol_huffman = construir_arbol_huffman(pQueue);
+
+  for (int i = 0; i < nFiles; i++) {
+      rebuidFile(fileNames[i], dataE, fileChars[i], arbol_huffman);
+  }
+
+  fclose(dataE);
 }

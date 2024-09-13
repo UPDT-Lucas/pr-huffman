@@ -7,14 +7,16 @@
 #include <string.h>
 #include "huffman.h"
 
-int cantidadC = 0;
 wchar_t caracteres[310];
 int contadores[310];
-wchar_t noAparece[100];
-int noAp = 0;
-LinkedChar listC;
+int cantidadC=0;
 LinkedList* list;
-
+LinkedChar listC;
+wchar_t noAparece[100];
+int noAP = 0;
+int translateCounter;
+int bitsCounter=0;
+char translate[ARRAY_SIZE];
 
 void writeBitsToFile(FILE* file, const LinkedChar* list) {
     unsigned char buffer = 0;  
@@ -40,6 +42,48 @@ void writeBitsToFile(FILE* file, const LinkedChar* list) {
         buffer <<= (8 - bitCount); 
         fwrite(&buffer, sizeof(unsigned char), 1, file);
     }
+}
+
+int inListCar(wchar_t val){
+    for(int i = 0;i<cantidadC;i++){
+      if(val == caracteres[i]){
+        contadores[i] +=1;
+        return 1;
+      }
+    }
+    caracteres[cantidadC]=val;
+    contadores[cantidadC]=1;
+    cantidadC++;
+    return 0;
+}
+
+void preOrder(Node* root, char value) {
+    if (root == NULL) return;  // Verificación adicional por seguridad
+
+    // Si el valor no es '\0', lo agregamos al código actual
+    if (value != '\0') {
+        translate[translateCounter] = value;
+        translateCounter++;
+        bitsCounter++;
+    }
+
+    if (root->left == NULL && root->right == NULL) {
+        translate[translateCounter] = '\0';  
+        insert(list, translate, root->data,bitsCounter,root->freq);  
+    } else {
+        // Recorremos el subárbol izquierdo, agregando '0' al código
+        if (root->left != NULL) {
+            preOrder(root->left, '0');
+        }
+        // Recorremos el subárbol derecho, agregando '1' al código
+        if (root->right != NULL) {
+            preOrder(root->right, '1');
+        }
+    }
+
+    translateCounter--;
+    bitsCounter--;
+    translate[translateCounter] = '\0';  
 }
 
 void escribir_encabezado(FILE* archivo, LinkedList* lista) {
@@ -92,47 +136,74 @@ int getFileCharsCounts(FILE* file){
   return nCarac;
 }
 
-void writeFileChars(FILE* file, FILE* toWrite, LinkedList* list){
-    if (file == NULL) {
+int writeFileChars(FILE* f, FILE* fileTo){
+    if (f == NULL) {
         perror("Error opening file");
     }
     wchar_t ch;
     int bitS=0;
-    while((ch = fgetwc(file)) != WEOF){
+    while((ch = fgetwc(f)) != WEOF){
         char* codigo = get_arr_by_char(list,ch);
         if(codigo ==NULL){
             int flag = 0;
-            for(int i =0 ; i<noAp;i++){
+            for(int i =0 ; i<noAP;i++){
                 if(noAparece[i]==ch){
-                  flag=1;
-                  break;
+                flag=1;
+                break;
                 }
             }
             if(flag==0){
-            noAparece[noAp]=ch;
-            noAp++;
+            noAparece[noAP]=ch;
+            noAP++;
             }
         }else{
+            
             for(int i=0;i<1000;i++){  
             if(codigo[i]!= '\0'&&bitS<8){
+
                 insertChar(&listC,codigo[i]);
                 bitS++;
+
             }else if(codigo[i]!= '\0'&&bitS>=8){
-                writeBitsToFile(toWrite,&listC);
+                writeBitsToFile(fileTo,&listC);
                 freeLinkedchar(&listC); 
                 bitS=0;
                 insertChar(&listC,codigo[i]);
                 bitS++;
             }else if(codigo[i]== '\0'&&bitS>=8){
-                writeBitsToFile(toWrite,&listC);
+                writeBitsToFile(fileTo,&listC);
                 freeLinkedchar(&listC); 
                 bitS=0;
             }else{
                 break;
             }
+            
             }
         }
     }
+    return noAP;
+}
+
+int countChars(FILE* f){
+    if (f == NULL) {
+        perror("Error opening file");
+    }
+    wchar_t ch;
+    int saltos =1;
+    int nCarac=0;
+    while((ch = fgetwc(f)) != WEOF){
+        if(ch == L'\n'){
+            if(saltos<1){
+            nCarac++;
+            inListCar(ch);
+            }
+            saltos--;
+        }else if(ch!=L'\0'){
+        nCarac++;
+        inListCar(ch);
+        }
+    }
+    return nCarac;
 }
 
 int main(){
@@ -146,10 +217,11 @@ int main(){
         perror("Cannot open directory");
         return 1;
     }
-
+    
     int numD=0;
+
     while ((dp = readdir(dir))) {
-        if (dp->d_type == DT_REG) {
+      if (dp->d_type == DT_REG) {
           numD++;
       }
     }
@@ -161,41 +233,49 @@ int main(){
         perror("Cannot open directory");
         return 1;
     }
-
+    //printf("ciclo para recolectar apariciones\n");
     while ((dp = readdir(dir))) {
         if (dp->d_type == DT_REG) {
             char fileToRead[256];
             snprintf(fileToRead, sizeof(fileToRead), "textos/%s", dp->d_name);
 
-
             FILE *f = fopen(fileToRead, "r,ccs=UTF-8");
-            int nCarac = getFileCharsCounts(f);
+            int nCarac = countChars(f);
 
             int lenF=strlen(fileToRead)+1;
             fwrite(&lenF, sizeof(int), 1, dataC);
             fwrite(fileToRead, sizeof(char), strlen(fileToRead) + 1, dataC);
             fwrite(&nCarac, sizeof(int), 1, dataC);
+            
             fclose(f);
         }
     }
-
     closedir(dir);
 
     createTree(caracteres,contadores,cantidadC);
     escribir_encabezado(dataC,list);
     initLinkedChar(&listC);
 
-    int noAP = 0;
+    if ((dir = opendir("textos")) == NULL) {
+        perror("Cannot open directory");
+        return 1;
+    }
+    
+    //wprintf(L"en ciclo para recolectar codigos");
     while ((dp = readdir(dir))) {
+
         if (dp->d_type == DT_REG) {
             char fileToRead[256];
             snprintf(fileToRead, sizeof(fileToRead), "textos/%s", dp->d_name);
+
             FILE *f = fopen(fileToRead, "r");
-            writeFileChars(f, dataC, list);
+            noAP += writeFileChars(f, dataC);
             fclose(f);
         }
       }
+    closedir(dir);
     fclose(dataC);
+    free_list(list);
     return 0;
 }
 
