@@ -8,6 +8,10 @@
 #include "huffman.h"
 #include <time.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <errno.h>
 LinkedList* list;
 int translateCounter;
 int bitsCounter=0;
@@ -66,12 +70,26 @@ void decodeHuffman(FILE* decodeTo, FILE* decodeFrom, Node* root, int numChars) {
         }
     }
 }
+void obtener_nombre_archivo(const char* ruta, char* nombre) {
+    // Encontrar el último '/' para obtener el nombre del archivo
+    const char *archivo = strrchr(ruta, '/');
+    if (archivo) {
+        archivo++;  // Saltar el '/'
+    } else {
+        archivo = ruta;  // Si no hay '/', el archivo es la ruta completa
+    }
+
+    // Copiar el nombre del archivo sin la extensión
+    strncpy(nombre, archivo, strrchr(archivo, '.') - archivo);
+    nombre[strrchr(archivo, '.') - archivo] = '\0';  // Asegurar el terminador nulo
+}
 
 void rebuidFile(char* filename, FILE* fileToRead, int numChars, Node* huffman){
     char decodedFileName[256];
-    snprintf(decodedFileName, sizeof(decodedFileName), "%s_decoded.txt", filename);
+    char fileOutPath[256];
+    obtener_nombre_archivo(filename,fileOutPath);
+    snprintf(decodedFileName, sizeof(decodedFileName),"decoded-s/%s_decoded.txt", fileOutPath);
     FILE *decodedFile = fopen(decodedFileName, "w");
-    
     decodeHuffman(decodedFile, fileToRead, huffman, numChars);
     fclose(decodedFile);
 }
@@ -104,6 +122,22 @@ PriorityQueue* leerArbolHuffman(FILE *dataE) {
     }
     return pQueue;
 }
+void createDirectory(char* name){
+    int status = mkdir(name, 0777); 
+
+    if (status == 0) {
+        printf("Directorio '%s' creado exitosamente.\n", name);
+    } else {
+        if (errno == EEXIST) {
+            printf("El directorio '%s' ya existe.\n", name);
+        } else {
+            perror("Error al crear el directorio");
+        }
+    }
+}
+
+
+
 int main(){
 
     struct timeval start, end;
@@ -127,6 +161,7 @@ int main(){
   PriorityQueue* pQueue = leerArbolHuffman(dataE);
 
   Node* arbol_huffman = construir_arbol_huffman(pQueue);
+  createDirectory("decoded-s");
 
   for (int i = 0; i < nFiles; i++) {
       rebuidFile(fileNames[i], dataE, fileChars[i], arbol_huffman);
