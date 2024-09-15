@@ -1,8 +1,12 @@
 #bin-bash!
 #Correrse en super usuario
+
 echo "Actulizando y descargando dependencias..."
 sudo dnf install gcc
 sudo dnf install make
+
+
+
 echo "Compilando Programa serial ..."
 echo "Compresor serial ..."
 make -f makefileSE
@@ -24,6 +28,10 @@ else
     echo "Hubo un error durante la compilación."
     exit 1
 fi
+sleep 10
+
+
+
 
 echo "Compilando Programa Paralelo..."
 echo "Compresor Fork ..."
@@ -36,6 +44,7 @@ else
     echo "Hubo un error durante la compilación."
     exit 1
 fi
+
 echo "Descompresor Fork ..."
 make -f makefileFD
 
@@ -46,6 +55,9 @@ else
     echo "Hubo un error durante la compilación."
     exit 1
 fi
+sleep 10
+
+
 
 echo "Compilando Programa concurrente..."
 echo "Compresor threads ..."
@@ -58,7 +70,7 @@ else
     echo "Hubo un error durante la compilación."
     exit 1
 fi
-echo "Descompresor Fork ..."
+echo "Descompresor threads ..."
 make -f makefileTD
 
 if [ $? -eq 0 ]; then
@@ -68,7 +80,7 @@ else
     echo "Hubo un error durante la compilación."
     exit 1
 fi
-
+sleep 10
 
 echo "Proceso completado."
 
