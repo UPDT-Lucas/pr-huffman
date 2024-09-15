@@ -6,7 +6,8 @@
 #include <dirent.h>
 #include <string.h>
 #include "huffman.h"
-
+#include <time.h>
+#include <sys/time.h>
 LinkedList* list;
 int translateCounter;
 int bitsCounter=0;
@@ -38,39 +39,12 @@ void escribir_encabezado(FILE* archivo, LinkedList* lista) {
     }
 }
 
-void preOrder(Node* root, char value) {
-    if (root == NULL) return;  // Verificación adicional por seguridad
 
-    // Si el valor no es '\0', lo agregamos al código actual
-    if (value != '\0') {
-        translate[translateCounter] = value;
-        translateCounter++;
-        bitsCounter++;
-    }
-
-    if (root->left == NULL && root->right == NULL) {
-        translate[translateCounter] = '\0';  
-        insert(list, translate, root->data,bitsCounter,root->freq);  
-    } else {
-        // Recorremos el subárbol izquierdo, agregando '0' al código
-        if (root->left != NULL) {
-            preOrder(root->left, '0');
-        }
-        // Recorremos el subárbol derecho, agregando '1' al código
-        if (root->right != NULL) {
-            preOrder(root->right, '1');
-        }
-    }
-
-    translateCounter--;
-    bitsCounter--;
-    translate[translateCounter] = '\0';  
-}
 
 void decodeHuffman(FILE* decodeTo, FILE* decodeFrom, Node* root, int numChars) {
     Node* current = root;
     unsigned char bits;
-    int nbits = 0;
+    int nbits = 1;
     int charsDecoded = 0;
 
     while (charsDecoded < numChars && fread(&bits, sizeof(unsigned char), 1, decodeFrom) == 1) {  // Leer un byte a la vez
@@ -97,6 +71,7 @@ void rebuidFile(char* filename, FILE* fileToRead, int numChars, Node* huffman){
     char decodedFileName[256];
     snprintf(decodedFileName, sizeof(decodedFileName), "%s_decoded.txt", filename);
     FILE *decodedFile = fopen(decodedFileName, "w");
+    
     decodeHuffman(decodedFile, fileToRead, huffman, numChars);
     fclose(decodedFile);
 }
@@ -121,6 +96,7 @@ PriorityQueue* leerArbolHuffman(FILE *dataE) {
     int charFreq;
     for (int i = 0; i < lenList; i++) {
         fread(&charN, sizeof(wchar_t), 1, dataE);
+        
         fread(&charFreq, sizeof(int), 1, dataE);
         if (charN != L'\0') {
             enqueue(pQueue, createNode(charN, charFreq));
@@ -128,12 +104,21 @@ PriorityQueue* leerArbolHuffman(FILE *dataE) {
     }
     return pQueue;
 }
-
 int main(){
+
+    struct timeval start, end;
+    double elapsed_time;
+    if (gettimeofday(&start, NULL) != 0) {
+        perror("Error getting start time");
+        exit(EXIT_FAILURE);
+    }
   int nFiles;
+  char *locale = setlocale(LC_ALL, "");
+  
   FILE *dataE = fopen("textos.bin", "rb");
   char* fileNames[100];
   int fileChars[100];
+
 
   fread(&nFiles, sizeof(int), 1, dataE);
 
@@ -148,4 +133,13 @@ int main(){
   }
 
   fclose(dataE);
+  if (gettimeofday(&end, NULL) != 0) {
+        perror("Error getting end time");
+        exit(EXIT_FAILURE);
+    }
+
+    // Calcular el tiempo transcurrido
+    elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1e6;
+    printf("Tiempo transcurrido: %f segundos\n", elapsed_time);
+  return 0;
 }
