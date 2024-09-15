@@ -80,7 +80,7 @@ void decodeHuffman(FILE* decodeTo, FILE* decodeFrom, Node* root, int numChars) {
 
 void rebuidFile(char* filename, FILE* fileToRead, int numChars, Node* huffman){
     char decodedFileName[256];
-    snprintf(decodedFileName, sizeof(decodedFileName), "decoded/%s_decoded.txt", filename);
+    snprintf(decodedFileName, sizeof(decodedFileName), "decoded-f/%s_decoded.txt", filename);
     FILE *decodedFile = fopen(decodedFileName, "w");
     decodeHuffman(decodedFile, fileToRead, huffman, numChars);
     fclose(decodedFile);
@@ -243,6 +243,8 @@ void separateChunks(FILE* inputFile, char* fileNames[], int nFiles) {
 int main(){
     struct timeval start, end;
     double elapsed_time;
+    char *locale = setlocale(LC_ALL, "");
+
     if (gettimeofday(&start, NULL) != 0) {
         perror("Error getting start time");
         exit(EXIT_FAILURE);
@@ -264,7 +266,7 @@ int main(){
     Node* arbol_huffman = construir_arbol_huffman(pQueue);
 
     createDirectory("tmp"); 
-    createDirectory("decoded"); 
+    createDirectory("decoded-f"); 
     separateChunks(dataE, fileNames, nFiles);
 
     printf("nFiles: %d\n", nFiles);
