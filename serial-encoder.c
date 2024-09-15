@@ -6,7 +6,8 @@
 #include <dirent.h>
 #include <string.h>
 #include "huffman.h"
-
+#include "globalsE.h"
+#include <sys/time.h>
 wchar_t caracteres[310];
 int contadores[310];
 int cantidadC=0;
@@ -57,36 +58,10 @@ int inListCar(wchar_t val){
     return 0;
 }
 
-void preOrder(Node* root, char value) {
-    if (root == NULL) return;  // Verificación adicional por seguridad
 
-    // Si el valor no es '\0', lo agregamos al código actual
-    if (value != '\0') {
-        translate[translateCounter] = value;
-        translateCounter++;
-        bitsCounter++;
-    }
-
-    if (root->left == NULL && root->right == NULL) {
-        translate[translateCounter] = '\0';  
-        insert(list, translate, root->data,bitsCounter,root->freq);  
-    } else {
-        // Recorremos el subárbol izquierdo, agregando '0' al código
-        if (root->left != NULL) {
-            preOrder(root->left, '0');
-        }
-        // Recorremos el subárbol derecho, agregando '1' al código
-        if (root->right != NULL) {
-            preOrder(root->right, '1');
-        }
-    }
-
-    translateCounter--;
-    bitsCounter--;
-    translate[translateCounter] = '\0';  
-}
 
 void escribir_encabezado(FILE* archivo, LinkedList* lista) {
+   
     int numero_simbolos = 0;
     LNode* actual = lista->head;
 
@@ -98,18 +73,22 @@ void escribir_encabezado(FILE* archivo, LinkedList* lista) {
 
     // Escribir el número de símbolos
     fwrite(&numero_simbolos, sizeof(int), 1, archivo);
+    fflush(archivo);
 
     // Recorrer la lista y escribir cada símbolo
     actual = lista->head;
     while (actual != NULL) {
         // Escribir el wchar_t (símbolo)
         fwrite(&actual->single_char, sizeof(wchar_t), 1, archivo);
+        fflush(archivo);
 
         // Escribir la longitud del código
         fwrite(&actual->freque, sizeof(int), 1, archivo);
+        fflush(archivo);
 
         actual = actual->next;
     }
+    fflush(archivo);
 }
 
 int getFileCharsCounts(FILE* file){
@@ -137,6 +116,7 @@ int getFileCharsCounts(FILE* file){
 }
 
 int writeFileChars(FILE* f, FILE* fileTo){
+
     if (f == NULL) {
         perror("Error opening file");
     }
@@ -207,6 +187,12 @@ int countChars(FILE* f){
 }
 
 int main(){
+    struct timeval start, end;
+    double elapsed_time;
+    if (gettimeofday(&start, NULL) != 0) {
+        perror("Error getting start time");
+        exit(EXIT_FAILURE);
+    }
     list = create_linked_list();
     char *locale = setlocale(LC_ALL, "");
     DIR *dir;
@@ -233,6 +219,7 @@ int main(){
         perror("Cannot open directory");
         return 1;
     }
+    
     //printf("ciclo para recolectar apariciones\n");
     while ((dp = readdir(dir))) {
         if (dp->d_type == DT_REG) {
@@ -276,6 +263,14 @@ int main(){
     closedir(dir);
     fclose(dataC);
     free_list(list);
+    if (gettimeofday(&end, NULL) != 0) {
+        perror("Error getting end time");
+        exit(EXIT_FAILURE);
+    }
+
+    // Calcular el tiempo transcurrido
+    elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1e6;
+    printf("Tiempo transcurrido: %f segundos\n", elapsed_time);
     return 0;
 }
 

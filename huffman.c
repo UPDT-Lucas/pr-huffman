@@ -8,6 +8,8 @@
 #include "linkedList.h"
 #include "pqueue.h"
 #include "linkedChar.h"
+
+#include "globalsE.h"
 #define INPUT_SIZE 32
 
 Node* createNode(wchar_t data, int freq){
@@ -18,6 +20,34 @@ Node* createNode(wchar_t data, int freq){
   return node;
 }
 
+void preOrder(Node* root, char value) {
+    if (root == NULL) return;  // Verificación adicional por seguridad
+
+    // Si el valor no es '\0', lo agregamos al código actual
+    if (value != '\0') {
+        translate[translateCounter] = value;
+        translateCounter++;
+        bitsCounter++;
+    }
+
+    if (root->left == NULL && root->right == NULL) {
+        translate[translateCounter] = '\0';  
+        insert(list, translate, root->data,bitsCounter,root->freq);  
+    } else {
+        // Recorremos el subárbol izquierdo, agregando '0' al código
+        if (root->left != NULL) {
+            preOrder(root->left, '0');
+        }
+        // Recorremos el subárbol derecho, agregando '1' al código
+        if (root->right != NULL) {
+            preOrder(root->right, '1');
+        }
+    }
+
+    translateCounter--;
+    bitsCounter--;
+    translate[translateCounter] = '\0';  
+}
 PriorityQueue* createPriorityQueue(int capacity) {
     PriorityQueue* pQueue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
     pQueue->size = 0;
@@ -99,7 +129,7 @@ void createTree(wchar_t data[], int freq[], int size, LinkedList* list) {
     top = dequeue(pQueue);
     // Realizar operaciones con el árbol
     //printHuffmanTree(top, 0);
-    preOrder(top, '\0', list);
+    preOrder(top, '\0');
 
     // Liberar memoria
     freeTree(top);

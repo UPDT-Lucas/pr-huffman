@@ -1,0 +1,416 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <locale.h>
+#include <wchar.h>
+#include <dirent.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include "huffman.h"
+#include <sys/time.h>
+wchar_t caracteres[310];
+int contadores[310];
+int cantidadC = 0;
+LinkedList* list;
+LinkedChar listC;
+wchar_t noAparece[100];
+int noAP = 0;
+int translateCounter;
+int bitsCounter = 0;
+char translate[ARRAY_SIZE];
+int pasaEncabezado = 0;
+
+void writeBitsToFile(FILE* file, const LinkedChar* list) {
+    unsigned char buffer = 0;  
+    int bitCount = 0;          
+
+    CNode *current = list->head;
+    while (current != NULL) {
+      
+        buffer = (buffer << 1) | (current->data - '0');  
+        bitCount++;
+
+       
+        if (bitCount == 8) {
+            fwrite(&buffer, sizeof(unsigned char), 1, file);
+            buffer = 0;       
+            bitCount = 0;    
+        }
+
+        current = current->next;  
+    }
+
+    if (bitCount > 0) {
+        buffer <<= (8 - bitCount); 
+        fwrite(&buffer, sizeof(unsigned char), 1, file);
+    }
+}
+
+int inListCar(wchar_t val){
+    for(int i = 0;i<cantidadC;i++){
+      if(val == caracteres[i]){
+        contadores[i] +=1;
+        return 1;
+      }
+    }
+    caracteres[cantidadC]=val;
+    contadores[cantidadC]=1;
+    cantidadC++;
+    return 0;
+}
+
+
+
+void escribir_encabezado(FILE* archivo, LinkedList* lista) {
+    if(pasaEncabezado){
+        printf("Encabezado ya escrito.\n");
+        return;
+    }
+
+    int numero_simbolos = 0;
+    LNode* actual = lista->head;
+
+    // Calcular el número de símbolos
+    while (actual != NULL) {
+        numero_simbolos++;
+        actual = actual->next;
+    }
+
+    // Escribir el número de símbolos
+    fwrite(&numero_simbolos, sizeof(int), 1, archivo);
+    fflush(archivo);
+
+    // Recorrer la lista y escribir cada símbolo
+    actual = lista->head;
+    while (actual != NULL) {
+        // Escribir el wchar_t (símbolo)
+        fwrite(&actual->single_char, sizeof(wchar_t), 1, archivo);
+        fflush(archivo);
+
+        // Escribir la longitud del código
+        fwrite(&actual->freque, sizeof(int), 1, archivo);
+        fflush(archivo);
+
+        actual = actual->next;
+    }
+    pasaEncabezado = 1;
+    fflush(archivo);
+}
+
+
+int getFileCharsCounts(FILE* file){
+    if (file == NULL) {
+      perror("Error opening file");
+      return 0;
+    }
+    wchar_t ch;
+    int saltos=1;
+    int nCarac=0;
+    while((ch = fgetwc(file)) != WEOF){
+        if(ch == L'\n'){
+            if(saltos<1){
+            nCarac++;
+            inListCar(ch);
+            }
+            saltos--;
+        }else if(ch!=L'\0'){
+        nCarac++;
+        inListCar(ch);
+
+        }
+    }
+  return nCarac;
+}
+
+int writeFileChars(FILE* f, FILE* fileTo){
+    if (f == NULL) {
+        perror("Error opening file");
+    }
+    wchar_t ch;
+    int bitS=0;
+    while((ch = fgetwc(f)) != WEOF){
+        char* codigo = get_arr_by_char(list,ch);
+        if(codigo ==NULL){
+            int flag = 0;
+            for(int i =0 ; i<noAP;i++){
+                if(noAparece[i]==ch){
+                flag=1;
+                break;
+                }
+            }
+            if(flag==0){
+            noAparece[noAP]=ch;
+            noAP++;
+            }
+        }else{
+            
+            for(int i=0;i<1000;i++){  
+            if(codigo[i]!= '\0'&&bitS<8){
+
+                insertChar(&listC,codigo[i]);
+                bitS++;
+
+            }else if(codigo[i]!= '\0'&&bitS>=8){
+                writeBitsToFile(fileTo,&listC);
+                freeLinkedchar(&listC); 
+                bitS=0;
+                insertChar(&listC,codigo[i]);
+                bitS++;
+            }else if(codigo[i]== '\0'&&bitS>=8){
+                writeBitsToFile(fileTo,&listC);
+                freeLinkedchar(&listC); 
+                bitS=0;
+            }else{
+                break;
+            }
+            
+            }
+        }
+    }
+    const char delimiter[] = "===END===";
+    fwrite(delimiter, sizeof(char), strlen(delimiter), fileTo);
+    return noAP;
+}
+
+int countChars(FILE* f){
+    if (f == NULL) {
+        perror("Error opening file");
+    }
+    wchar_t ch;
+    int saltos =1;
+    int nCarac=0;
+    while((ch = fgetwc(f)) != WEOF){
+        if(ch == L'\n'){
+            if(saltos<1){
+            nCarac++;
+            inListCar(ch);
+            }
+            saltos--;
+        }else if(ch!=L'\0'){
+        nCarac++;
+        inListCar(ch);
+        }
+    }
+    return nCarac;
+}
+
+void createDirectory(char* name){
+    int status = mkdir(name, 0777); 
+
+    if (status == 0) {
+        printf("Directorio '%s' creado exitosamente.\n", name);
+    } else {
+        if (errno == EEXIST) {
+            printf("El directorio '%s' ya existe.\n", name);
+        } else {
+            perror("Error al crear el directorio");
+        }
+    }
+}
+
+int eliminarArchivo(const char *path) {
+    if (unlink(path) == -1) {
+        perror("Error al eliminar archivo");
+        return -1;
+    }
+    return 0;
+}
+
+int eliminarDirectorio(const char *path) {
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        perror("Error al abrir directorio");
+        return -1;
+    }
+
+    struct dirent *entry;
+    char filepath[1024];
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
+
+        if (entry->d_type == DT_REG) {
+            if (eliminarArchivo(filepath) != 0) {
+                closedir(dir);
+                return -1;
+            }
+        }
+        else if (entry->d_type == DT_DIR) {
+            if (eliminarDirectorio(filepath) != 0) {
+                closedir(dir);
+                return -1;
+            }
+        }
+    }
+
+    closedir(dir);
+
+    if (rmdir(path) == -1) {
+        perror("Error al eliminar directorio");
+        return -1;
+    }
+
+    return 0;
+}
+
+int main() {
+    struct timeval start, end;
+    double elapsed_time;
+    if (gettimeofday(&start, NULL) != 0) {
+        perror("Error getting start time");
+        exit(EXIT_FAILURE);
+    }
+    list = create_linked_list();
+    char *locale = setlocale(LC_ALL, "");
+    DIR *dir;
+    struct dirent *dp;
+
+    if ((dir = opendir("textos")) == NULL) {
+        perror("Cannot open directory");
+        return 1;
+    }
+
+    int numD=0;
+
+    while ((dp = readdir(dir))) {
+      if (dp->d_type == DT_REG) {
+          numD++;
+      }
+    }
+    closedir(dir);
+
+    FILE *dataC = fopen("textos.bin", "wb");
+    fwrite(&numD, sizeof(int), 1, dataC);
+    if ((dir = opendir("textos")) == NULL) {
+        perror("Cannot open directory");
+        return 1;
+    }
+
+    while ((dp = readdir(dir))) {
+        if (dp->d_type == DT_REG) {
+            char fileToRead[256];
+            snprintf(fileToRead, sizeof(fileToRead), "textos/%s", dp->d_name);
+
+            FILE *f = fopen(fileToRead, "r,ccs=UTF-8");
+            int nCarac = countChars(f);
+
+            int lenF=strlen(fileToRead)+1;
+            fwrite(&lenF, sizeof(int), 1, dataC);
+            fwrite(fileToRead, sizeof(char), strlen(fileToRead) + 1, dataC);
+            fwrite(&nCarac, sizeof(int), 1, dataC);
+            
+            fclose(f);
+        }
+    }
+    closedir(dir);
+
+    createTree(caracteres,contadores,cantidadC);
+    escribir_encabezado(dataC,list);
+    initLinkedChar(&listC);
+
+    if((dir = opendir("textos")) == NULL) {
+      perror("Cannot open directory");
+      return 1;
+    }
+
+    createDirectory("tmp");
+
+    int num_procesos = 0;
+    while ((dp = readdir(dir))) {
+        if (dp->d_type == DT_REG) {
+            pid_t pid = fork();
+
+            if (pid == 0) {
+                // Proceso hijo: procesar un archivo
+                char fileToRead[256];
+                char tempFile[256];
+
+                snprintf(fileToRead, sizeof(fileToRead), "textos/%s", dp->d_name);
+                snprintf(tempFile, sizeof(tempFile), "tmp/%s", dp->d_name);
+
+                FILE *f = fopen(fileToRead, "r");
+                if (f == NULL) {
+                    perror("Error abriendo archivo");
+                    exit(1);
+                }
+
+                FILE *w = fopen(tempFile, "wb");
+                if (w == NULL) {
+                    perror("Error creando archivo temporal");
+                    fclose(f);
+                    exit(1);
+                }
+
+                noAP += writeFileChars(f, w);
+
+                fclose(f);
+                fclose(w);
+                exit(0);
+            } else if (pid > 0) {
+                // Proceso padre: cuenta el número de procesos
+                num_procesos++;
+            } else {
+                perror("Error en fork()");
+                exit(1);
+            }
+        }
+    }
+    closedir(dir);
+    fclose(dataC);
+    free_list(list);
+
+    // Esperar a que todos los procesos hijos terminen
+    for (int i = 0; i < num_procesos; i++) {
+        wait(NULL);
+    }
+
+     if ((dir = opendir("tmp")) == NULL) {
+        perror("Cannot open temporary directory");
+        return 1;
+    }
+
+    FILE *dataMix = fopen("textos.bin", "ab");
+
+    while ((dp = readdir(dir))) {
+        if (dp->d_type == DT_REG) {
+            char tempFile[256];
+            snprintf(tempFile, sizeof(tempFile), "tmp/%s", dp->d_name);
+
+            FILE *w = fopen(tempFile, "rb");
+            if (w == NULL) {
+                perror("Error abriendo archivo temporal");
+                continue;
+            }
+
+            // Combina el contenido del archivo temporal en el archivo binario final
+            char buffer[1024];
+            size_t bytesRead;
+            while ((bytesRead = fread(buffer, 1, sizeof(buffer), w)) > 0) {
+                fwrite(buffer, 1, bytesRead, dataC);
+            }
+
+            fclose(w);
+        }
+    }
+    fclose(dataMix);
+    closedir(dir);
+
+    eliminarDirectorio("tmp");
+    if (gettimeofday(&end, NULL) != 0) {
+        perror("Error getting end time");
+        exit(EXIT_FAILURE);
+    }
+
+    // Calcular el tiempo transcurrido
+    elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1e6;
+    printf("Tiempo transcurrido: %f segundos\n", elapsed_time);
+    return 0;
+}
