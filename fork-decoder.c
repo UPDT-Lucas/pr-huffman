@@ -242,7 +242,7 @@ void separateChunks(FILE* inputFile, char* fileNames[], int nFiles) {
 
 int main(){
     struct timeval start, end;
-    double elapsed_time;
+    long long elapsed_time;
     char *locale = setlocale(LC_ALL, "");
 
     if (gettimeofday(&start, NULL) != 0) {
@@ -323,8 +323,7 @@ int main(){
     }
 
     // Calcular el tiempo transcurrido
-    elapsed_time = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1e6;
-    printf("Tiempo transcurrido: %f segundos\n", elapsed_time);
-
+    elapsed_time = (end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_usec - start.tv_usec) * 1000LL;    
+     printf("Tiempo transcurrido: %lld nanosegundos\n", elapsed_time);
     return 0;
 }
